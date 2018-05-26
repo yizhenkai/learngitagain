@@ -75,10 +75,16 @@ void serve(int sockfd)
 {
 	int clfd;
 	FILE *fp;
+	fd_set rset;
+	struct timeval timeout;
 	char buf[BUFLEN] = "123YIZHENKAIZUISHUAI!";
 	char buf2[BUFLEN] = "hahaha";
-	char bufRecv[BUFLEN] = "";
+	char bufRecv[BUFLEN] = "0";
 	int n = 0;
+	struct {
+	char head[4];
+	int  data;
+	} stData;
 	printf("eeee\n");
 	set_cloexec(sockfd);
 	for(;;)
@@ -89,6 +95,38 @@ void serve(int sockfd)
 			exit(1);
 		}
 		set_cloexec(clfd);
+		send(clfd,buf,10,0);
+	    FD_ZERO(&rset);
+		FD_SET(clfd,&rset);	
+		timeout.tv_sec = 5;
+		timeout.tv_usec = 0;
+		if(select(clfd + 1,&rset,NULL,NULL,&timeout) <= 0)
+		{
+			printf("select error\n");
+			return ;
+		}
+	    memset(&stData, 0 , sizeof(stData));	
+		n = recv(clfd, &stData, 8, 0);
+		if(8 != n)
+		{
+			printf("recv error\n");
+			return;
+		}
+		stData.data = ntohl(stData.data);
+		printf("bbbbb = %d\n",stData.data);
+		if(stData.data == 1234)
+		{
+			printf("confirm ok!!\n");
+	     	send(clfd,"OK!!!",5,0);
+		}
+		else
+		{
+			
+			printf("confirm error!!\n");
+	     	send(clfd,"ERROR",5,0);
+		}
+
+        close(clfd);
 		#if 0
 		if((fp = popen("/usr/bin/uptime","r") == NULL))
 		{
@@ -103,6 +141,7 @@ void serve(int sockfd)
 			
 		}
 		#endif
+		#if 0
 		send(clfd,buf,strlen(buf),0);
 		n = recv(clfd, bufRecv, REST, 0);
 		printf("n = %d\n",n);
@@ -115,6 +154,7 @@ void serve(int sockfd)
 		send(clfd,buf2,strlen(buf2),0);
 		close(clfd);
 		printf("ffff\n");
+		#endif 
 	}
 	
 }
@@ -131,7 +171,7 @@ int main(int argc, char* argv[])
 	char *host;
 	struct sockaddr_in sin;
 	struct sockaddr *ai_addr;
-	char addrBuf[INET_ADDRSTRLEN] = "192.168.1.19";
+	char addrBuf[INET_ADDRSTRLEN] = "192.168.1.24";
 
 	if(inet_pton(AF_INET,addrBuf,&sin.sin_addr) == 0)
 	{
