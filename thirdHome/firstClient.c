@@ -2,7 +2,8 @@
 #include <netdb.h>
 #include <errno.h>
 #include <sys/socket.h>
-
+#include <sys/select.h>
+#include "fcntl.h"
 #define MAXADDRLEN	256
 #define BUFLEN		128
 
@@ -41,8 +42,59 @@ print_uptime(int sockfd)
 {
 	int		n;
 	char	buf[BUFLEN];
-	char    head[3];
+	char    head[11];
+	struct {
+	char head[4];
+	int  data;
+	} stData;
+	fd_set rset;
+	struct timeval timeout;
 	memset(buf,0,BUFLEN);
+	FD_ZERO(&rset);
+	FD_SET(sockfd,&rset);
+	timeout.tv_sec = 5;
+	timeout.tv_usec = 0;
+	if(select(sockfd + 1,&rset,NULL,NULL,&timeout) <= 0)
+	{
+		printf("select error\n");
+		return;
+	}
+	n = recv(sockfd, head, 10, 0);
+	if (10 != n)
+	{
+		printf("recv error\n");
+		return ;
+	}
+	head[10] = '\0';
+	printf("qqqqq%s\n",head);
+	printf("sizeof = %d\n",sizeof(stData));
+	memset(&stData, 0 ,sizeof(stData));
+	stData.data = htonl(1234);
+	send(sockfd,&stData,8,0);
+	FD_ZERO(&rset);
+	FD_SET(sockfd,&rset);
+	timeout.tv_sec = 5;
+	timeout.tv_usec = 0;
+	if(select(sockfd + 1,&rset,NULL,NULL,&timeout) <= 0)
+	{
+		printf("select error\n");
+		return;
+	}
+	n = recv(sockfd, head, 5, 0);
+	if (5 != n)
+	{
+		printf("recv error\n");
+		return ;
+	}
+	if(head[0] == 'O')
+	{
+		printf("OK\n");
+	}
+	else
+	{
+		printf("ERROR\n");
+	}
+	#if 0
 	n = recv(sockfd, head, sizeof(head), 0);
 	printf("n = %d\n",n);
 	if(n != sizeof(head))
@@ -73,7 +125,8 @@ print_uptime(int sockfd)
 		send(sockfd,buf,strlen(buf),0);
 		n = recv(sockfd, buf, REST, 0);
 			printf("n = %d\n",n);
-			printf("buf = %s\n",buf);
+		    printf("buf = %s\n",buf);
+	#endif
 	#if 0
 	while ((n = recv(sockfd, buf, 3, 0)) > 0)
 	{
@@ -99,7 +152,7 @@ main(int argc, char *argv[])
 	struct sockaddr_in sin;
 	struct sockaddr   *ai_addr;
 	char        *addr;
-	char  abuf[INET_ADDRSTRLEN] = "192.168.1.19";
+	char  abuf[INET_ADDRSTRLEN] = "192.168.1.24";
 	char  bbuf[INET_ADDRSTRLEN];
 
 	if (argc != 2)
